@@ -1,35 +1,167 @@
-import { SerialPort } from "serialport";
-import Robot from "./Robot";
-import { delay } from "./utils";
+import { serve } from "@hono/node-server";
+import { zValidator } from "@hono/zod-validator";
+import { Hono } from "hono";
+import z from "zod";
+import robot from "./robot-factory";
+import { positionSchema } from "./schemas";
 
-const robot = new Robot();
+const app = new Hono();
+app.get("/", (c) => c.text("Hello Node.js!"));
 
-const start = async () => {
-  await robot.connect("/dev/tty.usbserial-141430");
-  console.log("Robot connected and ready to receive data.");
-  await delay(1000);
+app.get("/health", (c) => c.json({ status: "ok" }));
 
-  const pos = await robot.getPosition();
-  console.log("Current position:", pos);
-  await delay(1000);
-  await robot.setToolLength(107);
-  /* await robot.setGripper(true);
-   */
-  await delay(1000);
-  while (true) {
-    await robot.moveTo(0, 520, 250, -10, 0);
-    await delay(1000);
-    await robot.moveTo(0, 520, 250, 10, 0);
-    await delay(1000);
+app.get("/position", async (c) => {
+  console.log("Fetching robot position...");
+  try {
+    const position = robot.getPosition();
+    return c.json({ ok: true, position });
+  } catch (error) {
+    return c.json(
+      {
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      },
+      500
+    );
   }
-  /* await robot.moveTo(0, 200, 300, 0, 0);
-  await delay(2000); */
-  /* await robot.moveTo(0, 560, 280, 0, 0);
-  await delay(2000);
-  await robot.moveTo(0, 560, 300, 0, 0);
-  await delay(2000); */
-  //await robot.setGripper(false);
-  await robot.disconnect();
-};
+});
 
-start();
+app.post(
+  "/move",
+  zValidator("json", z.object({ position: positionSchema })),
+  async (c) => {
+    const { position } = c.req.valid("json");
+    try {
+      await robot.moveTo(position);
+      return c.json({ ok: true });
+    } catch (error) {
+      return c.json(
+        {
+          ok: false,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        500
+      );
+    }
+  }
+);
+
+app.post(
+  "/move-continuous",
+  zValidator("json", z.object({ positions: z.array(positionSchema) })),
+  async (c) => {
+    try {
+      await robot.moveContinuous(c.req.valid("json").positions);
+      return c.json({ ok: true });
+    } catch (error) {
+      return c.json(
+        {
+          ok: false,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        500
+      );
+    }
+  }
+);
+
+app.post(
+  "/connect",
+  zValidator("json", z.object({ port: z.string() })),
+  async (c) => {
+    const { port } = c.req.valid("json");
+
+    try {
+      await robot.connect(port);
+      return c.json({ ok: true });
+    } catch (error) {
+      return c.json(
+        {
+          ok: false,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        500
+      );
+    }
+  }
+);
+app.post(
+  "/disconnect",
+
+  async (c) => {
+    try {
+      await robot.disconnect();
+      return c.json({ ok: true });
+    } catch (error) {
+      return c.json(
+        {
+          ok: false,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        500
+      );
+    }
+  }
+);
+
+app.post(
+  "/set-gripper",
+  zValidator("json", z.object({ open: z.boolean() })),
+  async (c) => {
+    const { open } = c.req.valid("json");
+    try {
+      await robot.setGripper(open);
+      return c.json({ ok: true });
+    } catch (error) {
+      return c.json(
+        {
+          ok: false,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        500
+      );
+    }
+  }
+);
+
+app.post(
+  "/set-speed",
+  zValidator("json", z.object({ speed: z.number().int().min(0).max(9) })),
+  async (c) => {
+    const { speed } = c.req.valid("json");
+    try {
+      await robot.setSpeed(speed);
+      return c.json({ ok: true });
+    } catch (error) {
+      return c.json(
+        {
+          ok: false,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        500
+      );
+    }
+  }
+);
+
+app.post(
+  "/set-tool-length",
+  zValidator("json", z.object({ length: z.number().min(0) })),
+  async (c) => {
+    const { length } = c.req.valid("json");
+    try {
+      await robot.setToolLength(length);
+      return c.json({ ok: true });
+    } catch (error) {
+      return c.json(
+        {
+          ok: false,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        500
+      );
+    }
+  }
+);
+
+serve({ fetch: app.fetch, port: 5123 });

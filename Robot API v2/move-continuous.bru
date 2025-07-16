@@ -1,0 +1,25 @@
+meta {
+  name: move-continuous
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{HOSTNAME}}/move-continuous
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "positions": [
+      {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "p": 0,
+        "r": 0
+      }
+    ]
+  }
+}
