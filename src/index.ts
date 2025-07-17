@@ -16,12 +16,9 @@ const options = commandLineArgs(optionDefinitions);
 const app = new Hono();
 app.get("/", (c) => c.text("Hello Node.js!"));
 
-app.get("/health", (c) => c.json({}));
-
 app.get("/status", async (c) => {
   console.log("Fetching robot status...");
   return c.json({
-    ok: true,
     isConnected: robot.isConnected(),
     position: robot.getPosition(),
   });
