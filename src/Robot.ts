@@ -37,6 +37,10 @@ class Robot {
 		});
 	}
 
+	isConnected(): boolean {
+		return !!this.port?.isOpen;
+	}
+
 	async sendCommandNoAnswer(command: string): Promise<void> {
 		if (!this.port) {
 			return Promise.reject(new Error("Port is not open"));
