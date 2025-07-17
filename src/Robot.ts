@@ -6,14 +6,14 @@ class Robot {
   port: SerialPort | null = null;
   position: Position | null = null;
   toolIsOpen = false;
-
+  toolLength = -1; // Default tool length
+  speed = -1;
   portIsOpen = false;
-  constructor() {}
 
   async connect(comPortName: string): Promise<void> {
     return new Promise((resolve, _error) => {
-      const port = new SerialPort({
-        path: "/dev/tty.usbserial-141430",
+      this.port = new SerialPort({
+        path: comPortName.trim(),
         baudRate: 9600,
         dataBits: 7,
         stopBits: 2,
@@ -23,16 +23,15 @@ class Robot {
         handshake: "xOnXOff",
       });
 
-      port.on("open", () => {
+      this.port.on("open", () => {
         console.log(`Connected to port: ${comPortName}`);
-        this.port = port;
         resolve();
-        this.port.on("data", (data) => {
-          console.log("Data received:", data.toString());
-        });
-        this.port.on("error", (err) => {
-          console.error("Error on port:", err);
-        });
+      });
+      this.port.on("data", (data) => {
+        console.log("Data received:", data.toString());
+      });
+      this.port.on("error", (err) => {
+        console.error("Error on port:", err);
       });
     });
   }
@@ -172,13 +171,13 @@ class Robot {
     if (speed < 0 || speed > 9) {
       return Promise.reject(new Error("Speed must be between 0 and 9"));
     }
-
+    this.speed = speed;
     await this.sendCommandNoAnswer("SP " + Math.floor(speed));
   }
 
   async setToolLength(length: number): Promise<void> {
     this.checkPortOpen();
-
+    this.toolLength = length;
     await this.sendCommandNoAnswer(`TL ${Math.floor(length)}`);
   }
 
@@ -228,6 +227,18 @@ class Robot {
 
   getPosition() {
     return this.position;
+  }
+
+  getToolLength() {
+    return this.toolLength;
+  }
+  getSpeed() {
+    return this.speed;
+  }
+
+  async listPorts(): Promise<string[]> {
+    const ports = await SerialPort.list();
+    return ports.map((port) => port.path);
   }
 }
 

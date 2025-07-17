@@ -2,7 +2,7 @@ import { serve } from "@hono/node-server";
 import { zValidator } from "@hono/zod-validator";
 import commandLineArgs from "command-line-args";
 import { Hono } from "hono";
-import z, { custom } from "zod";
+import z from "zod";
 import { defaultPort } from "./defaults";
 import robot from "./robot-factory";
 import { positionSchema } from "./schemas";
@@ -29,14 +29,47 @@ app.get("/status", async (c) => {
     isConnected: robot.isConnected(),
     position: robot.getPosition(),
     gripperOpen: robot.toolIsOpen,
+    speed: robot.getSpeed(),
+    toolLength: robot.getToolLength(),
   };
   return c.json(newStatus);
 });
 app.get("/position", async (c) => {
-  console.log("Fetching robot position...");
   try {
     const position = robot.getPosition();
     return c.json({ position });
+  } catch (error) {
+    return c.json(
+      {
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      },
+      500
+    );
+  }
+});
+
+app.get("/request-position", async (c) => {
+  try {
+    await robot.requestPosition();
+    const position = robot.getPosition();
+    return c.json({ position });
+  } catch (error) {
+    return c.json(
+      {
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      },
+      500
+    );
+  }
+});
+
+app.get("/serialports", async (c) => {
+  try {
+    const ports = await robot.listPorts();
+
+    return c.json({ ports });
   } catch (error) {
     return c.json(
       {

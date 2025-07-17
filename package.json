@@ -12,7 +12,8 @@
 	},
 	"scripts": {
 		"start": "tsx watch ./src/index.ts",
-		"check": "biome check --write"
+		"check": "biome check --write",
+		"list": "bunx serialport-list"
 	},
 	"dependencies": {
 		"@hono/node-server": "^1.16.0",
