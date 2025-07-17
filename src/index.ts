@@ -2,10 +2,13 @@ import { serve } from "@hono/node-server";
 import { zValidator } from "@hono/zod-validator";
 import commandLineArgs from "command-line-args";
 import { Hono } from "hono";
-import z from "zod";
+import z, { custom } from "zod";
 import { defaultPort } from "./defaults";
 import robot from "./robot-factory";
 import { positionSchema } from "./schemas";
+
+import { cors } from "hono/cors";
+import { logger } from "hono/logger";
 
 const optionDefinitions = [
   { name: "port", alias: "p", type: Number, defaultValue: defaultPort },
@@ -14,14 +17,20 @@ const optionDefinitions = [
 const options = commandLineArgs(optionDefinitions);
 
 const app = new Hono();
-app.get("/", (c) => c.text("Hello Node.js!"));
 
+export const customLogger = (message: string, ...rest: string[]) => {
+  console.log(message, ...rest);
+};
+
+app.use("*", cors());
+app.use(logger(customLogger));
 app.get("/status", async (c) => {
-  console.log("Fetching robot status...");
-  return c.json({
+  const newStatus = {
     isConnected: robot.isConnected(),
     position: robot.getPosition(),
-  });
+    gripperOpen: robot.toolIsOpen,
+  };
+  return c.json(newStatus);
 });
 app.get("/position", async (c) => {
   console.log("Fetching robot position...");
@@ -98,24 +107,20 @@ app.post(
     }
   }
 );
-app.post(
-  "/disconnect",
-
-  async (c) => {
-    try {
-      await robot.disconnect();
-      return c.json({});
-    } catch (error) {
-      return c.json(
-        {
-          ok: false,
-          error: error instanceof Error ? error.message : String(error),
-        },
-        500
-      );
-    }
+app.post("/disconnect", async (c) => {
+  try {
+    await robot.disconnect();
+    return c.json({});
+  } catch (error) {
+    return c.json(
+      {
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      },
+      500
+    );
   }
-);
+});
 
 app.post(
   "/set-gripper",
