@@ -107,69 +107,52 @@ class Robot {
     return { ok: false, error: ROBOT_ERRORS.UNKNOWN_ERROR };
   }
 
-  async moveTo(position: Position, interpolatePoints?: number): Promise<void>;
-  async moveTo(
-    x: number,
-    y: number,
-    z: number,
-    interpolatePoints?: number
-  ): Promise<void>;
-  async moveTo(
-    positionOrX: Position | number,
-    yOrInterpolatePoints?: number,
-    z?: number,
-    interpolatePoints?: number
-  ): Promise<void> {
+  async moveTo(position: Position, interpolatePoints = 0): Promise<void> {
     this.checkPortOpen();
 
-    let x: number,
-      y: number,
-      zCoord: number,
-      p: number,
-      r: number,
-      actualInterpolatePoints: number;
+    const { x, y, z, p, r } = position;
 
-    if (typeof positionOrX === "object") {
-      // First overload: moveTo(position, interpolatePoints)
-      ({ x, y, z: zCoord, p, r } = positionOrX);
-      actualInterpolatePoints = yOrInterpolatePoints ?? 0;
-    } else {
-      // Second overload: moveTo(x, y, z, interpolatePoints)
-      if (!this.position) {
-        throw new Error("Actual position not set");
-      }
-      x = positionOrX;
-      y = yOrInterpolatePoints!;
-      zCoord = z!;
-      p = this.position.p;
-      r = this.position.r;
-      actualInterpolatePoints = interpolatePoints ?? 0;
-    }
-
-    if (actualInterpolatePoints === 0) {
+    if (interpolatePoints === 0) {
       await this.sendCommandNoAnswer(
-        `MP ${fmt(x)}, ${fmt(y)}, ${fmt(zCoord)}, ${fmt(p)}, ${fmt(r)}`
+        `MP ${fmt(x)}, ${fmt(y)}, ${fmt(z)}, ${fmt(p)}, ${fmt(r)}`
       );
     } else {
       await this.sendCommandNoAnswer("PC 1");
       await this.sendCommandNoAnswer(
-        `PD 1, ${fmt(x)}, ${fmt(y)}, ${fmt(zCoord)}, ${fmt(p)}, ${fmt(r)}`
+        `PD 1, ${fmt(x)}, ${fmt(y)}, ${fmt(z)}, ${fmt(p)}, ${fmt(r)}`
       );
       await this.sendCommandNoAnswer(
-        `MS 1, ${actualInterpolatePoints}, ${this.toolIsOpen ? "C" : "O"}`
+        `MS 1, ${interpolatePoints}, ${this.toolIsOpen ? "C" : "O"}`
       );
     }
 
     // Update cached position
-    if (this.position) {
-      this.position.x = x;
-      this.position.y = y;
-      this.position.z = zCoord;
-      this.position.p = p;
-      this.position.r = r;
-    } else {
-      this.position = { x, y, z: zCoord, p, r };
+    this.position = { x, y, z, p, r };
+  }
+
+  /**
+   * Moves the robot arm to the given absolute x-y-z coordinates using current P and R values
+   */
+  async moveToXYZ(
+    x: number,
+    y: number,
+    z: number,
+    interpolatePoints = 0
+  ): Promise<void> {
+    if (!this.position) {
+      throw new Error("Actual position not set");
     }
+
+    return this.moveTo(
+      {
+        x,
+        y,
+        z,
+        p: this.position.p,
+        r: this.position.r,
+      },
+      interpolatePoints
+    );
   }
 
   async getActualPosition(
@@ -205,13 +188,6 @@ class Robot {
     this.position = position;
 
     return { ...position }; // Return cloned position
-  }
-
-  /**
-   * @deprecated Use getActualPosition() instead
-   */
-  async updatePositionFromHardware(): Promise<Position> {
-    return this.getActualPosition(true);
   }
 
   async setGripper(open: boolean): Promise<void> {

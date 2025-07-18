@@ -2,13 +2,12 @@ import { serve } from "@hono/node-server";
 import { zValidator } from "@hono/zod-validator";
 import commandLineArgs from "command-line-args";
 import { Hono } from "hono";
+import { cors } from "hono/cors";
+import { logger } from "hono/logger";
 import z from "zod";
 import { defaultPort } from "./defaults";
 import robot from "./robot-factory";
 import { positionSchema } from "./schemas";
-
-import { cors } from "hono/cors";
-import { logger } from "hono/logger";
 
 const optionDefinitions = [
   { name: "port", alias: "p", type: Number, defaultValue: defaultPort },
@@ -51,7 +50,7 @@ app.get("/position", async (c) => {
 
 app.get("/update-position", async (c) => {
   try {
-    await robot.updatePositionFromHardware();
+    await robot.getActualPosition();
     const position = robot.getPosition();
     return c.json({ position });
   } catch (error) {
@@ -214,6 +213,224 @@ app.post(
     }
   }
 );
+
+app.post("/home", async (c) => {
+  try {
+    await robot.moveToHomePosition();
+    return c.json({});
+  } catch (error) {
+    return c.json(
+      {
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      },
+      500
+    );
+  }
+});
+
+app.post("/nest", async (c) => {
+  try {
+    await robot.nest();
+    return c.json({});
+  } catch (error) {
+    return c.json(
+      {
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      },
+      500
+    );
+  }
+});
+
+app.post("/reset", async (c) => {
+  try {
+    await robot.reset();
+    return c.json({});
+  } catch (error) {
+    return c.json(
+      {
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      },
+      500
+    );
+  }
+});
+
+app.post(
+  "/set-grip-pressure",
+  zValidator(
+    "json",
+    z.object({
+      startingGripForce: z.number().int().min(0).max(15),
+      retainedGrippingForce: z.number().int().min(0).max(15),
+      startGrippingForceRetentionTime: z.number().int().min(0).max(99),
+    })
+  ),
+  async (c) => {
+    const {
+      startingGripForce,
+      retainedGrippingForce,
+      startGrippingForceRetentionTime,
+    } = c.req.valid("json");
+    try {
+      await robot.setGripPressure(
+        startingGripForce,
+        retainedGrippingForce,
+        startGrippingForceRetentionTime
+      );
+      return c.json({});
+    } catch (error) {
+      return c.json(
+        {
+          ok: false,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        500
+      );
+    }
+  }
+);
+
+app.post(
+  "/rotate-axis",
+  zValidator("json", z.object({ position: positionSchema })),
+  async (c) => {
+    const { position } = c.req.valid("json");
+    try {
+      await robot.rotateAxis(
+        position.x,
+        position.y,
+        position.z,
+        position.p,
+        position.r
+      );
+      return c.json({});
+    } catch (error) {
+      return c.json(
+        {
+          ok: false,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        500
+      );
+    }
+  }
+);
+
+app.post(
+  "/move-delta",
+  zValidator(
+    "json",
+    z.object({
+      position: positionSchema,
+      interpolatePoints: z.number().int().min(0).optional(),
+    })
+  ),
+  async (c) => {
+    const { position, interpolatePoints } = c.req.valid("json");
+    try {
+      await robot.moveDelta(
+        position.x,
+        position.y,
+        position.z,
+        position.p,
+        position.r,
+        interpolatePoints
+      );
+      return c.json({});
+    } catch (error) {
+      return c.json(
+        {
+          ok: false,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        500
+      );
+    }
+  }
+);
+
+app.post(
+  "/move-to-xyz",
+  zValidator(
+    "json",
+    z.object({
+      position: z.object({
+        x: z.number(),
+        y: z.number(),
+        z: z.number(),
+      }),
+      interpolatePoints: z.number().int().min(0).optional(),
+    })
+  ),
+  async (c) => {
+    const { position, interpolatePoints } = c.req.valid("json");
+    try {
+      await robot.moveToXYZ(
+        position.x,
+        position.y,
+        position.z,
+        interpolatePoints
+      );
+      return c.json({});
+    } catch (error) {
+      return c.json(
+        {
+          ok: false,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        500
+      );
+    }
+  }
+);
+
+app.post(
+  "/clean-up-r-value",
+  zValidator(
+    "json",
+    z.object({
+      position: z.object({
+        x: z.number(),
+        y: z.number(),
+      }),
+      rTarget: z.number(),
+    })
+  ),
+  async (c) => {
+    const { position, rTarget } = c.req.valid("json");
+    try {
+      const cleanedR = robot.cleanUpRValue(position.x, position.y, rTarget);
+      return c.json({ cleanedR });
+    } catch (error) {
+      return c.json(
+        {
+          ok: false,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        500
+      );
+    }
+  }
+);
+
+app.get("/gripper-closed", async (c) => {
+  try {
+    const closed = robot.getGripperClosed();
+    return c.json({ closed });
+  } catch (error) {
+    return c.json(
+      {
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      },
+      500
+    );
+  }
+});
 
 const port = options.port ?? defaultPort;
 
