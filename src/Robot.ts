@@ -107,27 +107,80 @@ class Robot {
     return { ok: false, error: ROBOT_ERRORS.UNKNOWN_ERROR };
   }
 
-  async moveTo(position: Position, interpolatePoints = 0): Promise<void> {
+  async moveTo(position: Position, interpolatePoints?: number): Promise<void>;
+  async moveTo(
+    x: number,
+    y: number,
+    z: number,
+    interpolatePoints?: number
+  ): Promise<void>;
+  async moveTo(
+    positionOrX: Position | number,
+    yOrInterpolatePoints?: number,
+    z?: number,
+    interpolatePoints?: number
+  ): Promise<void> {
     this.checkPortOpen();
 
-    const { x, y, z, p, r } = position;
+    let x: number,
+      y: number,
+      zCoord: number,
+      p: number,
+      r: number,
+      actualInterpolatePoints: number;
 
-    if (interpolatePoints === 0) {
+    if (typeof positionOrX === "object") {
+      // First overload: moveTo(position, interpolatePoints)
+      ({ x, y, z: zCoord, p, r } = positionOrX);
+      actualInterpolatePoints = yOrInterpolatePoints ?? 0;
+    } else {
+      // Second overload: moveTo(x, y, z, interpolatePoints)
+      if (!this.position) {
+        throw new Error("Actual position not set");
+      }
+      x = positionOrX;
+      y = yOrInterpolatePoints!;
+      zCoord = z!;
+      p = this.position.p;
+      r = this.position.r;
+      actualInterpolatePoints = interpolatePoints ?? 0;
+    }
+
+    if (actualInterpolatePoints === 0) {
       await this.sendCommandNoAnswer(
-        `MP ${fmt(x)}, ${fmt(y)}, ${fmt(z)}, ${fmt(p)}, ${fmt(r)}`
+        `MP ${fmt(x)}, ${fmt(y)}, ${fmt(zCoord)}, ${fmt(p)}, ${fmt(r)}`
       );
     } else {
       await this.sendCommandNoAnswer("PC 1");
       await this.sendCommandNoAnswer(
-        `PD 1, ${fmt(x)}, ${fmt(y)}, ${fmt(z)}, ${fmt(p)}, ${fmt(r)}`
+        `PD 1, ${fmt(x)}, ${fmt(y)}, ${fmt(zCoord)}, ${fmt(p)}, ${fmt(r)}`
       );
       await this.sendCommandNoAnswer(
-        `MS 1, ${interpolatePoints}, ${this.toolIsOpen ? "C" : "O"}`
+        `MS 1, ${actualInterpolatePoints}, ${this.toolIsOpen ? "C" : "O"}`
       );
+    }
+
+    // Update cached position
+    if (this.position) {
+      this.position.x = x;
+      this.position.y = y;
+      this.position.z = zCoord;
+      this.position.p = p;
+      this.position.r = r;
+    } else {
+      this.position = { x, y, z: zCoord, p, r };
     }
   }
 
-  async updatePositionFromHardware(): Promise<Position> {
+  async getActualPosition(
+    forceUpdateByHardware: boolean = true
+  ): Promise<Position> {
+    if (!forceUpdateByHardware && this.position) {
+      // Return cached position (cloned to prevent mutation)
+      return { ...this.position };
+    }
+
+    // Update from hardware
     const response = await this.sendCommandWithAnswer("WH");
 
     const parts = response.split(",").map((part) => {
@@ -151,7 +204,14 @@ class Robot {
     };
     this.position = position;
 
-    return position;
+    return { ...position }; // Return cloned position
+  }
+
+  /**
+   * @deprecated Use getActualPosition() instead
+   */
+  async updatePositionFromHardware(): Promise<Position> {
+    return this.getActualPosition(true);
   }
 
   async setGripper(open: boolean): Promise<void> {
@@ -209,6 +269,154 @@ class Robot {
     await this.sendCommandNoAnswer(
       `MC ${positionOffset}, ${points.length - 1 + positionOffset}`
     );
+  }
+
+  /**
+   * Moves all axes to zero position
+   */
+  async moveToHomePosition(): Promise<void> {
+    this.checkPortOpen();
+    await this.sendCommandNoAnswer("OG");
+  }
+
+  /**
+   * Moves the robot to its mechanical origin position
+   * Must be performed immediately after power on
+   */
+  async nest(): Promise<void> {
+    this.checkPortOpen();
+    await this.sendCommandNoAnswer("NT");
+  }
+
+  /**
+   * Resets the control box
+   */
+  async reset(): Promise<void> {
+    this.checkPortOpen();
+    await this.sendCommandNoAnswer("RS");
+  }
+
+  /**
+   * Defines the pressure of the robot arm gripper
+   * @param startingGripForce Starting gripping force (0-15)
+   * @param retainedGrippingForce Retained gripping force (0-15)
+   * @param startGrippingForceRetentionTime Start gripping force retention time (0-99)
+   */
+  async setGripPressure(
+    startingGripForce: number,
+    retainedGrippingForce: number,
+    startGrippingForceRetentionTime: number
+  ): Promise<void> {
+    this.checkPortOpen();
+
+    if (startingGripForce < 0 || startingGripForce > 15) {
+      throw new Error("Starting grip force must be between 0 and 15");
+    }
+    if (retainedGrippingForce < 0 || retainedGrippingForce > 15) {
+      throw new Error("Retained gripping force must be between 0 and 15");
+    }
+    if (
+      startGrippingForceRetentionTime < 0 ||
+      startGrippingForceRetentionTime > 99
+    ) {
+      throw new Error(
+        "Start gripping force retention time must be between 0 and 99"
+      );
+    }
+
+    await this.sendCommandNoAnswer(
+      `GP ${startingGripForce}, ${retainedGrippingForce}, ${startGrippingForceRetentionTime}`
+    );
+  }
+
+  /**
+   * Rotates the axes relative to the actual position
+   */
+  async rotateAxis(
+    x: number,
+    y: number,
+    z: number,
+    p: number,
+    r: number
+  ): Promise<void> {
+    this.checkPortOpen();
+
+    await this.sendCommandNoAnswer(
+      `MJ ${fmt(x)}, ${fmt(y)}, ${fmt(z)}, ${fmt(p)}, ${fmt(r)}`
+    );
+
+    // Update position from hardware after rotation
+    await this.getActualPosition(true);
+  }
+
+  /**
+   * Moves the robot arm to the given relative position/axis values
+   * @param interpolatePoints when != 0: use linear calculated path points
+   */
+  async moveDelta(
+    x: number,
+    y: number,
+    z: number,
+    interpolatePoints?: number
+  ): Promise<void>;
+  async moveDelta(
+    x: number,
+    y: number,
+    z: number,
+    p: number,
+    r: number,
+    interpolatePoints?: number
+  ): Promise<void>;
+  async moveDelta(
+    x: number,
+    y: number,
+    z: number,
+    pOrInterpolatePoints?: number,
+    r?: number,
+    interpolatePoints?: number
+  ): Promise<void> {
+    if (!this.position) {
+      throw new Error("Actual position not set");
+    }
+
+    // Handle overloads
+    let p: number, actualInterpolatePoints: number;
+    if (r === undefined && interpolatePoints === undefined) {
+      // 3-parameter version: moveDelta(x, y, z, interpolatePoints?)
+      p = this.position.p;
+      r = this.position.r;
+      actualInterpolatePoints = pOrInterpolatePoints ?? 0;
+    } else {
+      // 5-parameter version: moveDelta(x, y, z, p, r, interpolatePoints?)
+      p = pOrInterpolatePoints ?? this.position.p;
+      r = r ?? this.position.r;
+      actualInterpolatePoints = interpolatePoints ?? 0;
+    }
+
+    return this.moveTo(
+      {
+        x: this.position.x + x,
+        y: this.position.y + y,
+        z: this.position.z + z,
+        p: this.position.p + p,
+        r: this.position.r + r,
+      },
+      actualInterpolatePoints
+    );
+  }
+
+  /**
+   * Utility function to clean up R value based on X and Y coordinates
+   */
+  cleanUpRValue(x: number, y: number, rTarget: number): number {
+    return rTarget + (Math.atan2(x, y) * 180) / Math.PI;
+  }
+
+  /**
+   * Gets if the tool gripper is closed
+   */
+  getGripperClosed(): boolean {
+    return !this.toolIsOpen;
   }
 
   disconnect(): void {
