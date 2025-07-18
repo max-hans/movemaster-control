@@ -6,8 +6,9 @@ import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import z from "zod";
 import { defaultPort } from "./defaults";
-import robot from "./robot-factory";
+
 import { positionSchema } from "./schemas";
+import robot from "./robot";
 
 const optionDefinitions = [
   { name: "port", alias: "p", type: Number, defaultValue: defaultPort },
