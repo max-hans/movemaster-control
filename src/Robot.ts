@@ -127,7 +127,7 @@ class Robot {
     }
   }
 
-  async requestPosition(): Promise<Position> {
+  async updatePositionFromHardware(): Promise<Position> {
     const response = await this.sendCommandWithAnswer("WH");
 
     const parts = response.split(",").map((part) => {
@@ -168,11 +168,12 @@ class Robot {
   async setSpeed(speed: number): Promise<void> {
     this.checkPortOpen();
 
-    if (speed < 0 || speed > 9) {
+    const roundedSpeed = Math.floor(speed);
+    if (roundedSpeed < 0 || roundedSpeed > 9) {
       return Promise.reject(new Error("Speed must be between 0 and 9"));
     }
-    this.speed = speed;
-    await this.sendCommandNoAnswer("SP " + Math.floor(speed));
+    this.speed = roundedSpeed;
+    await this.sendCommandNoAnswer(`SP ${roundedSpeed}`);
   }
 
   async setToolLength(length: number): Promise<void> {
@@ -191,7 +192,7 @@ class Robot {
     }
   }
 
-  async moveContinuous(points: Position[]): Promise<void> {
+  async movePath(points: Position[]): Promise<void> {
     const positionOffset = 1;
     this.checkPortOpen();
 

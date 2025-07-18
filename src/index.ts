@@ -49,9 +49,9 @@ app.get("/position", async (c) => {
   }
 });
 
-app.get("/request-position", async (c) => {
+app.get("/update-position", async (c) => {
   try {
-    await robot.requestPosition();
+    await robot.updatePositionFromHardware();
     const position = robot.getPosition();
     return c.json({ position });
   } catch (error) {
@@ -102,11 +102,11 @@ app.post(
 );
 
 app.post(
-  "/move-continuous",
+  "/move-path",
   zValidator("json", z.object({ positions: z.array(positionSchema) })),
   async (c) => {
     try {
-      await robot.moveContinuous(c.req.valid("json").positions);
+      await robot.movePath(c.req.valid("json").positions);
       return c.json({});
     } catch (error) {
       return c.json(
