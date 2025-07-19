@@ -5,11 +5,13 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite",
+		"build": "vite build",
+		"deploy": "tsc && vite build --outDir=../backend/public",
 		"preview": "vite preview",
 		"format": "biome format --write",
 		"lint": "biome lint --write",
 		"lint-unsafe": "biome lint --write --unsafe",
-		"check": "biome check --write --unsafe",
+		"check": "tsc --noEmit && biome check --write --unsafe",
 		"tsc": "tsc --noEmit"
 	},
 	"dependencies": {
