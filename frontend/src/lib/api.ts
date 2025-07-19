@@ -1,22 +1,15 @@
 import axios from "axios";
+import type {
+	CleanRCommand,
+	GripperPressureCommand,
+	GripperState,
+	MoveCommand,
+	MoveDeltaCommand,
+	Position,
+	RotateCommand,
+} from "../types";
 
-const API_BASE_URL = "http://localhost:5123/";
-
-export interface Position {
-	x: number;
-	y: number;
-	z: number;
-	p: number;
-	r: number;
-}
-
-export interface GripperState {
-	open: boolean;
-}
-
-export interface MoveCommand extends Position {
-	interpolatePoints: number;
-}
+const API_BASE_URL = "/api";
 
 class RobotApi {
 	private apiUrl: string;

@@ -9,6 +9,7 @@ import { defaultPort } from "./defaults";
 
 import { positionSchema } from "./schemas";
 import robot from "./robot";
+import { serveStatic } from "@hono/node-server/serve-static";
 
 const optionDefinitions = [
   { name: "port", alias: "p", type: Number, defaultValue: defaultPort },
@@ -22,9 +23,14 @@ export const customLogger = (message: string, ...rest: string[]) => {
   console.log(message, ...rest);
 };
 
-app.use("*", cors());
-app.use(logger(customLogger));
-app.get("/status", async (c) => {
+app
+  .use("*", cors())
+  .use(logger(customLogger))
+  .use("*", serveStatic({ root: "public" }));
+
+const api = new Hono();
+
+api.get("/status", async (c) => {
   const newStatus = {
     isConnected: robot.isConnected(),
     position: robot.getPosition(),
@@ -34,7 +40,7 @@ app.get("/status", async (c) => {
   };
   return c.json(newStatus);
 });
-app.get("/position", async (c) => {
+api.get("/position", async (c) => {
   try {
     const position = robot.getPosition();
     return c.json({ position });
@@ -49,7 +55,7 @@ app.get("/position", async (c) => {
   }
 });
 
-app.get("/update-position", async (c) => {
+api.get("/update-position", async (c) => {
   try {
     await robot.getActualPosition();
     const position = robot.getPosition();
@@ -65,7 +71,7 @@ app.get("/update-position", async (c) => {
   }
 });
 
-app.get("/serialports", async (c) => {
+api.get("/serialports", async (c) => {
   try {
     const ports = await robot.listPorts();
 
@@ -81,7 +87,7 @@ app.get("/serialports", async (c) => {
   }
 });
 
-app.post(
+api.post(
   "/move",
   zValidator("json", z.object({ position: positionSchema })),
   async (c) => {
@@ -101,7 +107,7 @@ app.post(
   }
 );
 
-app.post(
+api.post(
   "/move-path",
   zValidator("json", z.object({ positions: z.array(positionSchema) })),
   async (c) => {
@@ -120,7 +126,7 @@ app.post(
   }
 );
 
-app.post(
+api.post(
   "/connect",
   zValidator("json", z.object({ port: z.string() })),
   async (c) => {
@@ -140,7 +146,7 @@ app.post(
     }
   }
 );
-app.post("/disconnect", async (c) => {
+api.post("/disconnect", async (c) => {
   try {
     await robot.disconnect();
     return c.json({});
@@ -155,7 +161,7 @@ app.post("/disconnect", async (c) => {
   }
 });
 
-app.post(
+api.post(
   "/set-gripper",
   zValidator("json", z.object({ open: z.boolean() })),
   async (c) => {
@@ -175,7 +181,7 @@ app.post(
   }
 );
 
-app.post(
+api.post(
   "/set-speed",
   zValidator("json", z.object({ speed: z.number().int().min(0).max(9) })),
   async (c) => {
@@ -195,7 +201,7 @@ app.post(
   }
 );
 
-app.post(
+api.post(
   "/set-tool-length",
   zValidator("json", z.object({ length: z.number().min(0) })),
   async (c) => {
@@ -215,7 +221,7 @@ app.post(
   }
 );
 
-app.post("/home", async (c) => {
+api.post("/home", async (c) => {
   try {
     await robot.moveToHomePosition();
     return c.json({});
@@ -230,7 +236,7 @@ app.post("/home", async (c) => {
   }
 });
 
-app.post("/nest", async (c) => {
+api.post("/nest", async (c) => {
   try {
     await robot.nest();
     return c.json({});
@@ -245,7 +251,7 @@ app.post("/nest", async (c) => {
   }
 });
 
-app.post("/reset", async (c) => {
+api.post("/reset", async (c) => {
   try {
     await robot.reset();
     return c.json({});
@@ -260,7 +266,7 @@ app.post("/reset", async (c) => {
   }
 });
 
-app.post(
+api.post(
   "/set-grip-pressure",
   zValidator(
     "json",
@@ -295,7 +301,7 @@ app.post(
   }
 );
 
-app.post(
+api.post(
   "/rotate-axis",
   zValidator("json", z.object({ position: positionSchema })),
   async (c) => {
@@ -321,7 +327,7 @@ app.post(
   }
 );
 
-app.post(
+api.post(
   "/move-delta",
   zValidator(
     "json",
@@ -354,7 +360,7 @@ app.post(
   }
 );
 
-app.post(
+api.post(
   "/move-to-xyz",
   zValidator(
     "json",
@@ -389,7 +395,7 @@ app.post(
   }
 );
 
-app.post(
+api.post(
   "/clean-up-r-value",
   zValidator(
     "json",
@@ -418,7 +424,7 @@ app.post(
   }
 );
 
-app.get("/gripper-closed", async (c) => {
+api.get("/gripper-closed", async (c) => {
   try {
     const closed = robot.getGripperClosed();
     return c.json({ closed });
@@ -434,6 +440,8 @@ app.get("/gripper-closed", async (c) => {
 });
 
 const port = options.port ?? defaultPort;
+
+app.route("/api", api);
 
 serve({ fetch: app.fetch, port });
 

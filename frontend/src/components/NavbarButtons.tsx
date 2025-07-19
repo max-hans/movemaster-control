@@ -18,7 +18,7 @@ const NavbarButtons: FunctionComponent = () => {
 	} = useRobot();
 
 	const [comPort, setComPort] = useState("COM3");
-	const [backendUrl, setBackendUrl] = useState("http://localhost:5135");
+	const [backendUrl, setBackendUrl] = useState("/api");
 
 	const [isConnecting, startConnectingTransition] = useTransition();
 

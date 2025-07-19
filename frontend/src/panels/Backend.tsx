@@ -23,7 +23,7 @@ const BackendPanel: FunctionComponent = () => {
 						type="text"
 						placeholder="Backend Url"
 						name="url"
-						defaultValue="http://localhost:5123"
+						defaultValue="/api"
 					/>
 
 					<Button type="submit">Set</Button>
