@@ -12,14 +12,14 @@ A standalone web application to control a "vintage" Mitsubishi Movemaster EX Rob
 - Real-time robot status monitoring
 - Position control and gripper operations
 - Serial port management
-- JSON-based position configuration
+- JSON-based path movement
 
 ## Getting Started
 
 ### Prerequisites
 
 - NodeJS runtime
-- USB connection to Mitsubishi Movemaster EX Robot
+- USB connection to Mitsubishi Movemaster EX Robot via RS232 adapter
 
 ### Quick Setup
 
@@ -36,7 +36,7 @@ A standalone web application to control a "vintage" Mitsubishi Movemaster EX Rob
    This will automatically install all dependencies, build and deploy the frontend, and start the application.
 
 3. **Access the application**
-   Open your browser and navigate to `http://localhost:3000`
+   Open your browser and navigate to `http://localhost:5123`
 
 ### Manual Setup
 
@@ -73,9 +73,9 @@ If you prefer to run the steps manually:
    ```
 
 5. **Access the application**
-   Open your browser and navigate to the server address (typically `http://localhost:3000`)
+   Open your browser and navigate to the server address (`http://localhost:5123`)
 
-The web interface will be served by the backend, and you can start controlling your Movemaster robot through the browser.
+The web interface should pop up, and you can start controlling your Movemaster robot through the browser.
 
 ## Development
 
