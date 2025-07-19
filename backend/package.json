@@ -4,16 +4,16 @@
   "type": "module",
   "devDependencies": {
     "@biomejs/biome": "^2.1.1",
-    "@types/bun": "latest",
+    "@types/node": "latest",
     "tsx": "^4.20.3"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
   },
   "scripts": {
-    "start": "tsx watch ./src/index.ts",
-    "check": "biome check --write",
-    "list": "bunx serialport-list"
+    "dev": "tsx watch ./src/index.ts",
+    "start": "tsx ./src/index.ts",
+    "check": "biome check --write"
   },
   "dependencies": {
     "@hono/node-server": "^1.16.0",
