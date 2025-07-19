@@ -1,6 +1,0 @@
-{
-	"version": "1",
-	"name": "Robot API v2",
-	"type": "collection",
-	"ignore": ["node_modules", ".git"]
-}
