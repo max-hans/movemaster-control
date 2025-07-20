@@ -14,6 +14,8 @@ A standalone web application to control a "vintage" Mitsubishi Movemaster EX Rob
 - Serial port management
 - JSON-based path movement
 
+![screenshot](./resources/screenshot.png)
+
 ## Getting Started
 
 ### Prerequisites
