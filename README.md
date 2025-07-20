@@ -1,4 +1,4 @@
-# movemaster-js
+# movemaster-control
 
 ![movemaster](./resources/cover.png)
 
