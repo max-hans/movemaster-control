@@ -2,6 +2,10 @@
 
 # Logs
 public/
+build/
+bin/
+dist/
+.env
 
 logs
 _.log

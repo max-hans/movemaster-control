@@ -1,27 +1,45 @@
 {
-  "name": "movemaster-js",
-  "module": "index.ts",
-  "type": "module",
-  "devDependencies": {
-    "@biomejs/biome": "^2.1.1",
-    "@types/node": "latest",
-    "tsx": "^4.20.3"
-  },
-  "peerDependencies": {
-    "typescript": "^5.0.0"
-  },
-  "scripts": {
-    "dev": "tsx watch ./src/index.ts",
-    "start": "tsx ./src/index.ts",
-    "check": "biome check --write"
-  },
-  "dependencies": {
-    "@hono/node-server": "^1.16.0",
-    "@hono/zod-validator": "^0.7.1",
-    "@types/command-line-args": "^5.2.3",
-    "command-line-args": "^6.0.1",
-    "hono": "^4.8.5",
-    "movemaster-robot": "^1.0.4",
-    "zod": "^4.0.5"
-  }
+	"name": "movemaster-js",
+	"module": "src/index.ts",
+	"type": "module",
+	"bin": "dist/bundle.js",
+	"devDependencies": {
+		"@biomejs/biome": "^2.1.1",
+		"@swc/cli": "^0.7.8",
+		"@swc/core": "^1.13.2",
+		"@types/node": "latest",
+		"tsx": "^4.20.3"
+	},
+	"peerDependencies": {
+		"typescript": "^5.0.0"
+	},
+	"pkg": {
+		"assets": [
+			"public/**/*",
+			"node_modules/serialport/**/*",
+			"node_modules/@serialport/**/*",
+			"node_modules/serialport-bindings/**/*"
+		],
+		"outputPath": "bin"
+	},
+	"scripts": {
+		"dev": "tsx watch ./src/index.ts",
+		"start": "tsx ./src/index.ts",
+		"format": "biome format --write",
+		"lint": "biome lint --write",
+		"lint-unsafe": "biome lint --write --unsafe",
+		"build:bin": "pkg .",
+		"build:tsc": "tsc --project tsconfig.build.json",
+		"build:swc": "swc src -d dist",
+		"bundle": "npx esbuild src/index.ts --bundle --platform=node --target=node22 --outfile=dist/bundle.js --format=cjs --external:fsevents --packages=bundle --minify --tree-shaking=true --external:serialport"
+	},
+	"dependencies": {
+		"@hono/node-server": "^1.16.0",
+		"@hono/zod-validator": "^0.7.1",
+		"@types/command-line-args": "^5.2.3",
+		"command-line-args": "^6.0.1",
+		"hono": "^4.8.5",
+		"movemaster-robot": "^1.0.4",
+		"zod": "^4.0.5"
+	}
 }
